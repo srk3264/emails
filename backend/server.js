@@ -42,6 +42,43 @@ app.use(express.json({ limit: '1mb' }));
 const HF_IMAGE_ENDPOINT = process.env.HF_IMAGE_ENDPOINT || process.env.IMAGE_PROVIDER_URL || '';
 const HF_TOKEN = process.env.HF_TOKEN || process.env.IMAGE_PROVIDER_API_KEY || '';
 const HF_IMAGE_MODEL = process.env.HF_IMAGE_MODEL || process.env.IMAGE_PROVIDER_MODEL || '';
+const HF_IMAGE_PROVIDER = process.env.HF_IMAGE_PROVIDER || 'nscale';
+
+function getImageEndpoint() {
+  if (HF_IMAGE_ENDPOINT) return HF_IMAGE_ENDPOINT;
+  return `https://router.huggingface.co/${HF_IMAGE_PROVIDER}/v1/images/generations`;
+}
+
+function extractBase64Image(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const candidates = [];
+  if (Array.isArray(payload.images)) candidates.push(...payload.images);
+  if (Array.isArray(payload.data)) candidates.push(...payload.data);
+  if (payload.image) candidates.push(payload.image);
+  if (payload.generated_image) candidates.push(payload.generated_image);
+
+  for (const item of candidates) {
+    if (!item) continue;
+    if (typeof item === 'string') {
+      return item;
+    }
+    if (typeof item.base64 === 'string' && item.base64) {
+      return item.base64;
+    }
+    if (typeof item.b64_json === 'string' && item.b64_json) {
+      return item.b64_json;
+    }
+    if (typeof item.url === 'string' && item.url.startsWith('data:')) {
+      const commaIndex = item.url.indexOf(',');
+      if (commaIndex !== -1) return item.url.slice(commaIndex + 1);
+    }
+  }
+
+  if (typeof payload.base64 === 'string' && payload.base64) return payload.base64;
+  if (typeof payload.b64_json === 'string' && payload.b64_json) return payload.b64_json;
+  return null;
+}
 
 function ensureHttp(url) {
   try {
@@ -106,7 +143,7 @@ function buildHeroImagePrompt(data) {
 }
 
 async function generateHeroImage(data) {
-  const imageEndpoint = HF_IMAGE_ENDPOINT || (HF_IMAGE_MODEL ? `https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}` : '');
+  const imageEndpoint = getImageEndpoint();
   if (!imageEndpoint || !HF_TOKEN) {
     return null;
   }
@@ -121,10 +158,9 @@ async function generateHeroImage(data) {
         'Authorization': `Bearer ${HF_TOKEN}`
       },
       body: JSON.stringify({
-        inputs: prompt,
-        options: {
-          wait_for_model: true
-        }
+        response_format: 'b64_json',
+        prompt,
+        model: HF_IMAGE_MODEL
       })
     });
 
@@ -141,6 +177,12 @@ async function generateHeroImage(data) {
     }
 
     const payload = await response.json().catch(() => null);
+    const base64Image = extractBase64Image(payload);
+    if (base64Image) {
+      const mimeType = (payload && payload.mimeType) || 'image/png';
+      return `data:${mimeType};base64,${base64Image}`;
+    }
+
     const imageUrl = payload && (payload.imageUrl || payload.url || (payload.data && (payload.data.imageUrl || payload.data.url)));
     return typeof imageUrl === 'string' && imageUrl ? imageUrl : null;
   } catch (err) {
@@ -156,7 +198,7 @@ app.post('/generate-image', async (req, res) => {
 
   return res.json({
     ok: true,
-    configured: Boolean((HF_IMAGE_ENDPOINT || HF_IMAGE_MODEL) && HF_TOKEN),
+    configured: Boolean(HF_TOKEN && (HF_IMAGE_ENDPOINT || HF_IMAGE_MODEL)),
     prompt,
     imageUrl
   });
