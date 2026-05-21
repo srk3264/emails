@@ -39,9 +39,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-const IMAGE_PROVIDER_URL = process.env.OPENROUTER_IMAGE_ENDPOINT || process.env.IMAGE_PROVIDER_URL || '';
-const IMAGE_PROVIDER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.IMAGE_PROVIDER_API_KEY || '';
-const IMAGE_PROVIDER_MODEL = process.env.OPENROUTER_IMAGE_MODEL || process.env.IMAGE_PROVIDER_MODEL || '';
+const HF_IMAGE_ENDPOINT = process.env.HF_IMAGE_ENDPOINT || process.env.IMAGE_PROVIDER_URL || '';
+const HF_TOKEN = process.env.HF_TOKEN || process.env.IMAGE_PROVIDER_API_KEY || '';
+const HF_IMAGE_MODEL = process.env.HF_IMAGE_MODEL || process.env.IMAGE_PROVIDER_MODEL || '';
 
 function ensureHttp(url) {
   try {
@@ -106,36 +106,41 @@ function buildHeroImagePrompt(data) {
 }
 
 async function generateHeroImage(data) {
-  if (!IMAGE_PROVIDER_URL || !IMAGE_PROVIDER_API_KEY) {
+  const imageEndpoint = HF_IMAGE_ENDPOINT || (HF_IMAGE_MODEL ? `https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}` : '');
+  if (!imageEndpoint || !HF_TOKEN) {
     return null;
   }
 
   const prompt = buildHeroImagePrompt(data);
 
   try {
-    const response = await fetch(IMAGE_PROVIDER_URL, {
+    const response = await fetch(imageEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${IMAGE_PROVIDER_API_KEY}`,
-        ...(IMAGE_PROVIDER_MODEL ? { 'X-Model': IMAGE_PROVIDER_MODEL } : {})
+        'Authorization': `Bearer ${HF_TOKEN}`
       },
       body: JSON.stringify({
-        prompt,
-        aspectRatio: formatAspectRatio(data && data.heroAspectRatio),
-        title: data && data.title ? data.title : null,
-        description: data && data.description ? data.description : null,
-        ogImage: Array.isArray(data && data.ogImages) ? data.ogImages[0] || null : null,
-        colors: data && data.colors ? data.colors : null,
-        typography: data && data.typography ? data.typography : null
+        inputs: prompt,
+        options: {
+          wait_for_model: true
+        }
       })
     });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.warn(`hero image generation failed: ${response.status} ${errorText}`);
       return null;
     }
 
-    const payload = await response.json();
+    const contentType = response.headers.get('content-type') || 'image/png';
+    if (contentType.includes('image/') || contentType.includes('application/octet-stream')) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      return `data:${contentType};base64,${buffer.toString('base64')}`;
+    }
+
+    const payload = await response.json().catch(() => null);
     const imageUrl = payload && (payload.imageUrl || payload.url || (payload.data && (payload.data.imageUrl || payload.data.url)));
     return typeof imageUrl === 'string' && imageUrl ? imageUrl : null;
   } catch (err) {
@@ -151,7 +156,7 @@ app.post('/generate-image', async (req, res) => {
 
   return res.json({
     ok: true,
-    configured: Boolean(IMAGE_PROVIDER_URL && IMAGE_PROVIDER_API_KEY),
+    configured: Boolean((HF_IMAGE_ENDPOINT || HF_IMAGE_MODEL) && HF_TOKEN),
     prompt,
     imageUrl
   });

@@ -25,6 +25,6 @@ Response shape
 Notes
 
 - This is a minimal server for MVP use. For JS-heavy sites, add a Puppeteer/Playwright fallback to render the page before scraping.
-- The service can optionally generate a hero image server-side when `OPENROUTER_API_KEY` and `OPENROUTER_IMAGE_ENDPOINT` are configured in `backend/.env`.
+- The service can optionally generate a hero image server-side when `HF_TOKEN` and either `HF_IMAGE_ENDPOINT` or `HF_IMAGE_MODEL` are configured in `backend/.env`.
 - Copy `backend/.env.example` to `backend/.env` and fill in secrets on the server only; never put keys in the Chrome extension.
 - Consider caching results server-side for production and adding URL validation and rate limiting.
