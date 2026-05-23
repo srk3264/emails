@@ -133,7 +133,7 @@ function buildHeroImagePrompt(data) {
   const aspectRatio = HERO_BANNER_ASPECT_RATIO;
 
   return [
-    `Generate an abstract image for "${title}"`,
+    `Generate an abstract image for "${title}" without any text, letters, or numbers. `,
     `Use a strict ${aspectRatio} composition with a wide cinematic layout.`,
     description ? `Brand description: ${description}.` : '',
     colors.length ? `Brand colors: ${colors.join(', ')}.` : '',
