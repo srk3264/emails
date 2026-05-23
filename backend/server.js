@@ -95,6 +95,8 @@ function formatAspectRatio(ratio) {
   return `${Math.round(value * 100) / 100}:1`;
 }
 
+const HERO_BANNER_ASPECT_RATIO = '16:9';
+
 function normalizeFontFamily(value) {
   if (!value) return '';
   const first = String(value).split(',')[0].replace(/["']/g, '').trim();
@@ -128,16 +130,19 @@ function buildHeroImagePrompt(data) {
   const body = normalizeFontFamily(data && data.typography && data.typography[1] && data.typography[1].font) || 'unknown';
   const logo = Array.isArray(data && data.icons) && data.icons[0] ? data.icons[0] : '';
   const ogImage = Array.isArray(data && data.ogImages) && data.ogImages[0] ? data.ogImages[0] : '';
-  const aspectRatio = formatAspectRatio(data && data.heroAspectRatio);
+  const aspectRatio = HERO_BANNER_ASPECT_RATIO;
 
   return [
-    `Create a premium editorial hero image for the brand "${title}".`,
+    `Generate an abstract, attention-grabbing hero image for the brand "${title}" for an email banner.`,
+    `Use a strict ${aspectRatio} composition with a wide cinematic layout.`,
+    'Build the image from bold geometric forms, layered gradients, soft grain, and subtle motion energy.',
+    'Keep it brand-adjacent rather than literal; do not render readable text, UI screenshots, people, or product mockups.',
     description ? `Brand description: ${description}.` : '',
     colors.length ? `Brand colors: ${colors.join(', ')}.` : '',
     `Typography cues: heading font ${heading}, body font ${body}.`,
-    logo ? `Logo reference URL: ${logo}.` : '',
-    ogImage ? `Use the open graph image as visual inspiration: ${ogImage}.` : '',
-    `Match an aspect ratio of ${aspectRatio}.`,
+    logo ? `Logo reference URL: ${logo}. Use it only as subtle inspiration for shape and color, not as a literal logo lockup.` : '',
+    ogImage ? `Open graph reference: ${ogImage}. Use it only as mood and palette inspiration, not as a direct reproduction.` : '',
+    'Leave generous negative space so the banner can support overlaid copy and still feel intriguing.',
     'Keep the composition clean, modern, brand-safe, and high contrast. Avoid adding readable text unless absolutely necessary.'
   ].filter(Boolean).join(' ');
 }
