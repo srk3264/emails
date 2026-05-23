@@ -133,17 +133,13 @@ function buildHeroImagePrompt(data) {
   const aspectRatio = HERO_BANNER_ASPECT_RATIO;
 
   return [
-    `Generate an abstract, attention-grabbing hero image for the brand "${title}" for an email banner.`,
+    `Generate an abstract image for "${title}"`,
     `Use a strict ${aspectRatio} composition with a wide cinematic layout.`,
-    'Build the image from bold geometric forms, layered gradients, soft grain, and subtle motion energy.',
-    'Keep it brand-adjacent rather than literal; do not render readable text, UI screenshots, people, or product mockups.',
     description ? `Brand description: ${description}.` : '',
     colors.length ? `Brand colors: ${colors.join(', ')}.` : '',
     `Typography cues: heading font ${heading}, body font ${body}.`,
-    logo ? `Logo reference URL: ${logo}. Use it only as subtle inspiration for shape and color, not as a literal logo lockup.` : '',
-    ogImage ? `Open graph reference: ${ogImage}. Use it only as mood and palette inspiration, not as a direct reproduction.` : '',
-    'Leave generous negative space so the banner can support overlaid copy and still feel intriguing.',
-    'Keep the composition clean, modern, brand-safe, and high contrast. Avoid adding readable text unless absolutely necessary.'
+    logo ? `Logo reference URL: ${logo}` : '',
+    ogImage ? `Open graph reference: ${ogImage}` : '',
   ].filter(Boolean).join(' ');
 }
 
